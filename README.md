@@ -81,3 +81,6 @@ It addresses key layout limitations found in standard 5-octave players by introd
   +-----------------------+
   | Virtual Input Controller & Visualizer
   +-----------------------+
+```
+
+## Copy Script
