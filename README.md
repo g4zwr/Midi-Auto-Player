@@ -34,15 +34,6 @@ Copy the snippet below into your executor and run it. Click the copy icon in the
 ```lua
 loadstring(game:HttpGet("https://raw.githubusercontent.com/g4zwr/Midi-Auto-Player/refs/heads/main/Loader.lua"))()
 ```
-
-**Steps:**
-
-1. Join a supported Roblox virtual piano game.
-2. Inject/attach your executor.
-3. Paste the `loadstring` snippet above into the executor console.
-4. Execute — the Workspace File Scanner will auto-detect MIDI files placed in your workspace folder.
-5. Select a track from the in-game menu to begin playback.
-
 ---
 
 ## Directory Setup
