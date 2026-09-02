@@ -3,7 +3,7 @@
 # Virtual Piano MIDI Player
 
 <p align="center">
-  <strong>High-Precision Automated Virtual Piano Engine for Roblox</strong>
+  <strong>Automated Virtual Piano Script for Roblox</strong>
 </p>
 
 <a href="https://git.io/typing-svg">
