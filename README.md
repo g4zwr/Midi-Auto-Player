@@ -1,46 +1,83 @@
+<div align="center">
+
 # Virtual Piano MIDI Player
 
-An automated Lua-based Virtual Piano MIDI Player designed for Roblox piano games. It features full 7+ octave key mapping, dynamic falling-note visualization, and intelligent shift-key state tracking to prevent accidental key misfires.
+<p align="center">
+  <strong>High-Precision Automated Virtual Piano Engine for Roblox</strong>
+</p>
+
+<a href="https://git.io/typing-svg">
+  <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=20&pause=1000&color=FFFFFF&background=00000000&center=true&vCenter=true&width=650&height=50&lines=Full+7%2B+Octave+Key+Mapping+(85+Keys);Smart+Shift-State+Collision+Prevention;Dynamic+Real-Time+Falling-Note+Visualizer;Automated+MIDI+%2F+RTX+Workspace+Scanner" alt="Typing Animation" />
+</a>
+
+<br />
+
+<img src="https://img.shields.io/badge/Language-Lua-000000?style=for-the-badge&logo=lua&logoColor=white" alt="Lua" />
+<img src="https://img.shields.io/badge/Platform-Roblox-000000?style=for-the-badge&logo=roblox&logoColor=white" alt="Roblox" />
+<img src="https://img.shields.io/badge/Architecture-Async_Task_Scheduler-000000?style=for-the-badge" alt="Architecture" />
+<img src="https://img.shields.io/badge/License-MIT-000000?style=for-the-badge" alt="License" />
 
 ---
 
-## Video Showcase (Rush E Proof)
+</div>
 
-<p align="center">
-  <a href="https://www.youtube.com/watch?v=YOUR_VIDEO_ID_HERE">
-    <img src="https://img.youtube.com/vi/YOUR_VIDEO_ID_HERE/maxresdefault.jpg" alt="Virtual Piano Playing Rush E" width="700">
-  </a>
-</p>
+## Table of Contents
 
-```html
-<!-- Local / Direct Video Embed Template -->
-<video src="path/to/your/rush_e_proof.mp4" controls width="100%"></video>
+- [Overview](#overview)
+- [Key Features](#key-features)
+- [System Architecture](#system-architecture)
+- [Demonstration](#demonstration)
+- [Directory Setup](#directory-setup)
+- [Execution & Usage](#execution--usage)
+- [Configuration & Controls](#configuration--controls)
+- [Troubleshooting](#troubleshooting)
+- [License](#license)
 
-Features
- * Extended 7+ Octave Keyboard: Mapped across 85 chromatic pitches (57 white keys), extending well beyond basic 5-octave piano layouts.
- * Smart Shift-State Tracker: Manages LeftShift state per active chord to ensure white keys are never misread as black keys during complex playback.
- * Falling Note Visualizer: Displays real-time falling blocks mapped to key positions and duration.
- * Automatic .rtx Conversion: Scans for .rtx / .mid.rtx files and automatically renames and copies them into standard .mid format.
- * Playback Controls: Built-in transposing (semitones), speed scaling, smooth pause/resume transitions, and file rescanning.
-File Directory Setup
- * Open your executor's root folder on your device.
- * Locate and open the workspace directory:
-   * Example Path: <Executor Folder>/workspace (e.g., Delta/workspace, Fluxus/workspace, Codex/workspace).
- * Drag and drop your .mid or .midi files into this workspace folder.
-> Note on .rtx Files: If your MIDI files have the extension .rtx or .mid.rtx, simply leave them as is. The script's built-in file scanner automatically creates a duplicate .mid copy inside your workspace.
-> 
-Usage Instructions
- * Attach/Inject your Roblox executor in-game.
- * Execute script.lua.
- * Click the VP button in the top-left corner to toggle the GUI.
- * Click Rescan Files to populate your MIDI list from the workspace directory.
- * Select a file from the right panel.
- * Adjust the Transpose or Speed settings if desired.
- * Click Play to start playback.
-Technical Requirements
-Your executor must support standard file-system and input functions:
- * readfile / writefile
- * listfiles or listfile
- * isfile / isfolder
- * VirtualInputManager service
+---
 
+## Overview
+
+The **Virtual Piano MIDI Player** is an automated, high-throughput MIDI interpretation and execution engine designed for Roblox virtual piano environments. Built with a focus on timing precision and layout flexibility, the script bridges complex multi-track MIDI inputs with extended 7+ octave keyboard mappings.
+
+It addresses key layout limitations found in standard 5-octave players by introducing smart shift-state locking, automatic file conversion, and real-time visualizer synchronization.
+
+---
+
+## Key Features
+
+| Feature | Description |
+| :--- | :--- |
+| **Extended 85-Key Mapping** | Supports 7+ octaves (85 total keys / 57 white keys), transcending traditional 61-key limits. |
+| **Smart Shift Engine** | Dynamically tracks Shift state execution to prevent accidental black/white key collisions during rapid polyphonic sections. |
+| **Real-Time Visualizer** | Renders a top-down falling-note cascade aligned with on-screen key coordinates. |
+| **Workspace File Scanner** | Scans local executor directories and converts `.rtx` / `.mid.rtx` formats into native `.mid` files. |
+| **Granular Control** | Offers real-time semitone transposition (-12 to +12), speed scaling (0.1x to 2.0x), and instant pause/resume logic. |
+
+---
+
+## System Architecture
+
+```text
+  +-----------------------+
+  |    Local Workspace    |  ---> (.mid / .midi / .rtx)
+  +-----------------------+
+              |
+              v
+  +-----------------------+
+  |   Scanner & Converter |  ---> Normalizes file extensions
+  +-----------------------+
+              |
+              v
+  +-----------------------+
+  |   MIDI Parsing Engine |  ---> Extracts Delta-Times & Tracks
+  +-----------------------+
+              |
+              v
+  +-----------------------+
+  |   Shift-State Engine  |  ---> Evaluates uppercase/lowercase collision
+  +-----------------------+
+              |
+              v
+  +-----------------------+
+  | Virtual Input Controller & Visualizer
+  +-----------------------+
