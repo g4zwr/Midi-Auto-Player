@@ -27,8 +27,8 @@
 - [Key Features](#key-features)
 - [System Architecture](#system-architecture)
 - [Demonstration](#demonstration)
-- [Directory Setup](#directory-setup)
 - [Execution & Usage](#execution--usage)
+- [Directory Setup](#directory-setup)
 - [Configuration & Controls](#configuration--controls)
 - [Troubleshooting](#troubleshooting)
 - [License](#license)
@@ -91,40 +91,36 @@ https://github.com/user-attachments/assets/f548c2b5-9e9d-4668-974d-ac4829b9461e
 
 ---
 
-## Directory Setup
-
-Place your MIDI files in the workspace folder the script scans on startup:
-
-```text
-workspace/
-└── MidiPlayer/
-    └── Songs/
-        ├── song_one.mid
-        ├── song_two.midi
-        └── song_three.rtx
-```
-
-`.rtx` and `.mid.rtx` files are automatically converted to `.mid` on scan — no manual renaming needed.
-
----
-
 ## Execution & Usage
 
 Copy the snippet below into your executor and run it. Click the copy icon in the top-right of the code block to copy the full script.
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/g4zwr/Midi-Auto-Player/main/YOUR_SCRIPT_FILENAME.lua"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/g4zwr/Midi-Auto-Player/refs/heads/main/pianista.lua"))()
 ```
-
-> **Note:** Replace `YOUR_SCRIPT_FILENAME.lua` with the actual raw path once your `.lua` file is pushed to the repo. You can get the correct raw URL by opening the file on GitHub and clicking **Raw**.
 
 **Steps:**
 
 1. Join a supported Roblox virtual piano game.
 2. Inject/attach your executor.
 3. Paste the `loadstring` snippet above into the executor console.
-4. Execute — the Workspace File Scanner will auto-detect MIDI files in `MidiPlayer/Songs/`.
+4. Execute — the Workspace File Scanner will auto-detect MIDI files placed in your workspace folder.
 5. Select a track from the in-game menu to begin playback.
+
+---
+
+## Directory Setup
+
+Put your MIDI files directly in the `workspace` folder the script scans on startup:
+
+```text
+workspace/
+├── song_one.mid
+├── song_two.midi
+└── song_three.rtx
+```
+
+`.rtx` and `.mid.rtx` files are automatically converted to `.mid` on scan — no manual renaming or subfolders needed.
 
 ---
 
@@ -143,7 +139,7 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/g4zwr/Midi-Auto-Playe
 
 | Issue | Likely Cause | Fix |
 | :--- | :--- | :--- |
-| No MIDI files detected | Files not placed in scanned directory | Confirm files sit in `workspace/MidiPlayer/Songs/` |
+| No MIDI files detected | Files not placed in scanned directory | Confirm files sit directly in `workspace/` |
 | Notes play out of key | Transpose offset left from previous session | Reset transpose to `0` before loading a new file |
 | Script fails to load | Raw URL incorrect or repo file renamed | Re-copy the **Raw** link from GitHub for the current filename |
 | Video not rendering in README | Used a `blob/` link or local file path instead of an uploaded attachment | Drag the video into an Issue/PR comment box to generate a `user-attachments/assets/...` URL |
