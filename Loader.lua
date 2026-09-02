@@ -38,5 +38,6 @@ end
 AddSong("Golden-Brown.mid")
 AddSong("Jack - Golden hour.mid")
 AddSong("rush_e_real.mid")
+AddSong("DAIDAIDAIKIRAI.mid")
 
 loadstring(game:HttpGet("https://raw.githubusercontent.com/g4zwr/Midi-Auto-Player/refs/heads/main/pianista.lua"))()
