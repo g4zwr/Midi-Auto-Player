@@ -32,7 +32,7 @@ https://github.com/user-attachments/assets/f548c2b5-9e9d-4668-974d-ac4829b9461e
 Copy the snippet below into your executor and run it. Click the copy icon in the top-right of the code block to copy the full script.
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/g4zwr/Midi-Auto-Player/refs/heads/main/pianista.lua"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/g4zwr/Midi-Auto-Player/refs/heads/main/Loader.lua"))()
 ```
 
 **Steps:**
