@@ -32,7 +32,7 @@ local RGB = Color3.fromRGB
 local Inst = Instance.new
 
 local TOGGLE_KEY = Enum.KeyCode.RightControl
-local SELECTION_DEBOUNCE = 1-- seconds to wait after last click
+local SELECTION_DEBOUNCE = 0.5-- seconds to wait after last click
 
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local Players = game:GetService("Players")
