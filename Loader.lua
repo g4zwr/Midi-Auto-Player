@@ -23,29 +23,36 @@
 ]]
 local RepoBase = "https://raw.githubusercontent.com/g4zwr/Midi-Auto-Player/refs/heads/main/"
 
--- Proper percent-encoding (handles spaces, brackets, unicode, etc.)
 local function UrlEncode(str)
     return (str:gsub("([^%w%-%_%.%~])", function(c)
         return string.format("%%%02X", string.byte(c))
     end))
 end
 
+local function NormalizeToMid(name)
+    name = name:gsub("%.mid%.rtx$", ".mid")
+    name = name:gsub("%.rtx$", ".mid")
+    return name
+end
+
 local function AddSong(f)
-    if isfile(f) then return end
+    local localName = NormalizeToMid(f)
+
+    if isfile(localName) then return end
 
     local url = RepoBase .. UrlEncode(f)
     local ok, data = pcall(game.HttpGet, game, url)
     if ok then
-        writefile(f, data)
+        writefile(localName, data)
     else
         warn("[MidiPlayer] Failed to fetch '" .. f .. "': " .. tostring(data))
     end
 end
 
 AddSong("Golden-Brown.mid")
-AddSong("Jack - Golden hour.mid")
 AddSong("rush_e_real.mid")
 AddSong("DAIDAIDAIKIRAI.mid")
+AddSong("golden hour - JVKE.mid.rtx")
 AddSong("(FNF)   FOR YOU SOMEDAY   [ Meiart ]   (Bikini Horrors V3) .mid.rtx")
 AddSong("Coin Locker Baby (コインロッカーベイビー) - MARETU.mid.rtx")
 AddSong("Looping The Rooms (FULL Piano).mid.rtx")
