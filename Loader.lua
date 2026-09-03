@@ -23,15 +23,22 @@
 ]]
 local RepoBase = "https://raw.githubusercontent.com/g4zwr/Midi-Auto-Player/refs/heads/main/"
 
+-- Proper percent-encoding (handles spaces, brackets, unicode, etc.)
+local function UrlEncode(str)
+    return (str:gsub("([^%w%-%_%.%~])", function(c)
+        return string.format("%%%02X", string.byte(c))
+    end))
+end
+
 local function AddSong(f)
     if isfile(f) then return end
 
-    local url = RepoBase .. f:gsub(" ", "%%20")
+    local url = RepoBase .. UrlEncode(f)
     local ok, data = pcall(game.HttpGet, game, url)
     if ok then
-        writefile(filename, data)
+        writefile(f, data)
     else
-        warn("[MidiPlayer] Failed to fetch '" .. filename .. "': " .. tostring(data))
+        warn("[MidiPlayer] Failed to fetch '" .. f .. "': " .. tostring(data))
     end
 end
 
@@ -39,5 +46,10 @@ AddSong("Golden-Brown.mid")
 AddSong("Jack - Golden hour.mid")
 AddSong("rush_e_real.mid")
 AddSong("DAIDAIDAIKIRAI.mid")
+AddSong("(FNF)   FOR YOU SOMEDAY   [ Meiart ]   (Bikini Horrors V3) .mid.rtx")
+AddSong("Coin Locker Baby (コインロッカーベイビー) - MARETU.mid.rtx")
+AddSong("Looping The Rooms (FULL Piano).mid.rtx")
+AddSong("Rabbit Hole - DECO_27 (feat_ Hatsune Miku [AS SAWTONE]).mid.rtx")
+AddSong("The Disappearance of Hatsune Miku V2 .mid.rtx")
 
 loadstring(game:HttpGet("https://raw.githubusercontent.com/g4zwr/Midi-Auto-Player/refs/heads/main/pianista.lua"))()
