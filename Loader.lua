@@ -51,6 +51,7 @@ end
 
 AddSong("Golden-Brown.mid")
 AddSong("rush_e_real.mid")
+AddSong("プロポーズ propose (Piano Cover) ｜ 9lana ver. ｜ 可不 KAFU.mid")
 AddSong("DAIDAIDAIKIRAI.mid")
 AddSong("golden hour - JVKE.mid.rtx")
 AddSong("(FNF)   FOR YOU SOMEDAY   [ Meiart ]   (Bikini Horrors V3) .mid.rtx")
