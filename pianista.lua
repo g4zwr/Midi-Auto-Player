@@ -39,6 +39,7 @@ local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 
 local localPlayer = Players.LocalPlayer
 local targetParent = CoreGui:FindFirstChild("RobloxGui") or localPlayer:WaitForChild("PlayerGui")
@@ -143,7 +144,7 @@ addStroke(toggleButton, RGB(255, 255, 255), 1, 0.8)
 makeDraggable(toggleButton)
 
 ---------------------------------------------------------
--- WINDOW 1: MIDI LIST WINDOW (1:1 Ratio: 300x300)
+-- WINDOW 1: MIDI LIST WINDOW
 ---------------------------------------------------------
 local midiFrame = createUI("Frame", {
     Size = UDim2(0, 300, 0, 300),
@@ -244,7 +245,7 @@ addPadding(rightPanel, 4, 4, 4, 4)
 
 
 ---------------------------------------------------------
--- WINDOW 2: PIANO PLAYER WINDOW (1:1 Ratio: 300x300)
+-- WINDOW 2: PIANO PLAYER WINDOW
 ---------------------------------------------------------
 local pianoFrame = createUI("Frame", {
     Size = UDim2(0, 300, 0, 300),
@@ -510,13 +511,15 @@ local keyCodeMap = {
 }
 
 local chromaticNotes = {
+    -- Octave 1 (C2 - B2)
     { char = "1", isBlack = false }, { char = "!", isBlack = true },
     { char = "2", isBlack = false }, { char = "@", isBlack = true },
     { char = "3", isBlack = false }, { char = "4", isBlack = false },
     { char = "$", isBlack = true },  { char = "5", isBlack = false },
-    { char = "%", isBlack = true },  { char = "^", isBlack = true },
-    { char = "6", isBlack = false }, { char = "7", isBlack = false },
+    { char = "%", isBlack = true },  { char = "6", isBlack = false },
+    { char = "^", isBlack = true },  { char = "7", isBlack = false },
 
+    -- Octave 2 (C3 - B3)
     { char = "8", isBlack = false }, { char = "*", isBlack = true },
     { char = "9", isBlack = false }, { char = "(", isBlack = true },
     { char = "0", isBlack = false }, { char = "q", isBlack = false },
@@ -524,6 +527,7 @@ local chromaticNotes = {
     { char = "W", isBlack = true },  { char = "e", isBlack = false },
     { char = "E", isBlack = true },  { char = "r", isBlack = false },
 
+    -- Octave 3 (C4 - B4)
     { char = "t", isBlack = false }, { char = "T", isBlack = true },
     { char = "y", isBlack = false }, { char = "Y", isBlack = true },
     { char = "u", isBlack = false }, { char = "i", isBlack = false },
@@ -531,6 +535,7 @@ local chromaticNotes = {
     { char = "O", isBlack = true },  { char = "p", isBlack = false },
     { char = "P", isBlack = true },  { char = "a", isBlack = false },
 
+    -- Octave 4 (C5 - B5)
     { char = "s", isBlack = false }, { char = "S", isBlack = true },
     { char = "d", isBlack = false }, { char = "D", isBlack = true },
     { char = "f", isBlack = false }, { char = "g", isBlack = false },
@@ -538,6 +543,7 @@ local chromaticNotes = {
     { char = "H", isBlack = true },  { char = "j", isBlack = false },
     { char = "J", isBlack = true },  { char = "k", isBlack = false },
 
+    -- Octave 5 (C6 - B6)
     { char = "l", isBlack = false }, { char = "L", isBlack = true },
     { char = "z", isBlack = false }, { char = "Z", isBlack = true },
     { char = "x", isBlack = false }, { char = "c", isBlack = false },
@@ -545,26 +551,7 @@ local chromaticNotes = {
     { char = "V", isBlack = true },  { char = "b", isBlack = false },
     { char = "B", isBlack = true },  { char = "n", isBlack = false },
 
-    { char = "m", isBlack = false }, { char = "Y", isBlack = true },
-    { char = "y", isBlack = false }, { char = "U", isBlack = true },
-    { char = "u", isBlack = false }, { char = "i", isBlack = false },
-    { char = "O", isBlack = true },  { char = "o", isBlack = false },
-    { char = "P", isBlack = true },  { char = "p", isBlack = false },
-    { char = "A", isBlack = true },  { char = "a", isBlack = false },
-
-    { char = "s", isBlack = false }, { char = "D", isBlack = true },
-    { char = "d", isBlack = false }, { char = "F", isBlack = true },
-    { char = "f", isBlack = false }, { char = "g", isBlack = false },
-    { char = "H", isBlack = true },  { char = "h", isBlack = false },
-    { char = "J", isBlack = true },  { char = "j", isBlack = false },
-    { char = "K", isBlack = true },  { char = "k", isBlack = false },
-
-    { char = "l", isBlack = false }, { char = "L", isBlack = true },
-    { char = "z", isBlack = false }, { char = "Z", isBlack = true },
-    { char = "x", isBlack = false }, { char = "c", isBlack = false },
-    { char = "C", isBlack = true },  { char = "v", isBlack = false },
-    { char = "V", isBlack = true },  { char = "b", isBlack = false },
-    { char = "B", isBlack = true },  { char = "n", isBlack = false },
+    -- High C (C7)
     { char = "m", isBlack = false }
 }
 
@@ -603,7 +590,7 @@ for _, item in ipairs(chromaticNotes) do
     end
 end
 
-local BASE_MIDI_NOTE = 24
+local BASE_MIDI_NOTE = 36 
 local KEY_RANGE = #chromaticNotes
 
 local function midiNoteToKeyData(noteNumber, transposeSemitones)
@@ -658,7 +645,7 @@ local stopPlayback
 
 local function isShiftedChar(char)
     if not char then return false end
-    return char:match("[%u!@$%%^%*%(]") ~= nil
+    return char:match("[%u!@$%%%^%*%(]") ~= nil
 end
 
 local function pressKeyChar(char, keyData)
@@ -667,6 +654,22 @@ local function pressKeyChar(char, keyData)
     local existing = activeKeyStates[char]
     if existing then
         existing.refCount = existing.refCount + 1
+        VirtualInputManager:SendKeyEvent(false, existing.keyCode, false, game)
+        
+        if activeKeyStates[char] then
+            if existing.isShifted then
+                VirtualInputManager:SendKeyEvent(true, existing.keyCode, false, game)
+            else
+                if shiftedKeyCount > 0 then
+                    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.LeftShift, false, game)
+                    VirtualInputManager:SendKeyEvent(true, existing.keyCode, false, game)
+                    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.LeftShift, false, game)
+                else
+                    VirtualInputManager:SendKeyEvent(true, existing.keyCode, false, game)
+                end
+            end
+            existing.data.frame.BackgroundColor3 = RGB(100, 120, 255)
+        end
         return
     end
 
@@ -765,64 +768,68 @@ local function parseMidiBytes(data)
     local seqId = 0
 
     for _ = 1, ntrks do
-        if string.sub(data, pos, pos + 3) ~= "MTrk" then break end
-        local trackLen = readUint32(data, pos + 4)
-        local trackEnd = math.min(pos + 8 + trackLen, #data + 1)
-        local cursor = pos + 8
-        local tick = 0
-        local runningStatus = nil
+        if pos >= #data then break end
+        local chunkType = string.sub(data, pos, pos + 3)
+        local chunkLen = readUint32(data, pos + 4)
+        local trackEnd = pos + 8 + chunkLen
 
-        while cursor < trackEnd do
-            local delta
-            delta, cursor = readVarLen(data, cursor)
-            tick = tick + delta
+        if chunkType == "MTrk" then
+            local cursor = pos + 8
+            local tick = 0
+            local runningStatus = nil
 
-            local statusByte = string.byte(data, cursor)
+            while cursor < trackEnd do
+                local delta
+                delta, cursor = readVarLen(data, cursor)
+                tick = tick + delta
 
-            if statusByte == 0xFF then
-                cursor = cursor + 1
-                local metaType = string.byte(data, cursor)
-                cursor = cursor + 1
-                local len
-                len, cursor = readVarLen(data, cursor)
-                if metaType == 0x51 and len == 3 then
-                    local us = string.byte(data, cursor) * 65536 + string.byte(data, cursor + 1) * 256 + string.byte(data, cursor + 2)
-                    seqId = seqId + 1
-                    table.insert(allEvents, { tick = tick, kind = "tempo", usPerQuarter = us, id = seqId })
-                end
-                cursor = cursor + len
-            elseif statusByte == 0xF0 or statusByte == 0xF7 then
-                cursor = cursor + 1
-                local len
-                len, cursor = readVarLen(data, cursor)
-                cursor = cursor + len
-            else
-                local status
-                if statusByte >= 0x80 then
-                    status = statusByte
-                    runningStatus = status
+                local statusByte = string.byte(data, cursor)
+
+                if statusByte == 0xFF then
                     cursor = cursor + 1
-                else
-                    status = runningStatus
-                end
-                if not status then break end
-
-                local eventType = status - (status % 16)
-                local channel = status % 16
-                local data1 = string.byte(data, cursor)
-                cursor = cursor + 1
-
-                if eventType == 0x90 or eventType == 0x80 then
-                    local velocity = string.byte(data, cursor)
+                    local metaType = string.byte(data, cursor)
                     cursor = cursor + 1
-                    seqId = seqId + 1
-                    if eventType == 0x90 and velocity > 0 then
-                        table.insert(allEvents, { tick = tick, kind = "noteOn", note = data1, velocity = velocity, channel = channel, id = seqId })
-                    else
-                        table.insert(allEvents, { tick = tick, kind = "noteOff", note = data1, channel = channel, id = seqId })
+                    local len
+                    len, cursor = readVarLen(data, cursor)
+                    if metaType == 0x51 and len == 3 then
+                        local us = string.byte(data, cursor) * 65536 + string.byte(data, cursor + 1) * 256 + string.byte(data, cursor + 2)
+                        seqId = seqId + 1
+                        table.insert(allEvents, { tick = tick, kind = "tempo", usPerQuarter = us, id = seqId })
                     end
-                elseif eventType == 0xA0 or eventType == 0xB0 or eventType == 0xE0 then
+                    cursor = cursor + len
+                elseif statusByte == 0xF0 or statusByte == 0xF7 then
                     cursor = cursor + 1
+                    local len
+                    len, cursor = readVarLen(data, cursor)
+                    cursor = cursor + len
+                else
+                    local status
+                    if statusByte >= 0x80 then
+                        status = statusByte
+                        runningStatus = status
+                        cursor = cursor + 1
+                    else
+                        status = runningStatus
+                    end
+                    if not status then break end
+
+                    local eventType = status - (status % 16)
+                    local channel = status % 16
+                    local data1 = string.byte(data, cursor)
+                    cursor = cursor + 1
+
+                    if eventType == 0x90 or eventType == 0x80 then
+                        local velocity = string.byte(data, cursor)
+                        cursor = cursor + 1
+                        seqId = seqId + 1
+                        if eventType == 0x90 and velocity > 0 then
+                            table.insert(allEvents, { tick = tick, kind = "noteOn", note = data1, velocity = velocity, channel = channel, id = seqId })
+                        else
+                            table.insert(allEvents, { tick = tick, kind = "noteOff", note = data1, channel = channel, id = seqId })
+                        end
+                    elseif eventType == 0xA0 or eventType == 0xB0 or eventType == 0xE0 then
+                        cursor = cursor + 1
+                    end
                 end
             end
         end
@@ -1220,7 +1227,12 @@ playButton.MouseButton1Click:Connect(function()
     spawn(function()
         currentElapsedTime = 0
         local noteIdx = 1
-        local lastClock = os.clock()
+        
+        local songStartTime = os.clock()
+        local startSongTimeOffset = 0
+        
+        local lastUserSpeed = tonumber(speedInput.Text) or 1.0
+        if lastUserSpeed <= 0 then lastUserSpeed = 1.0 end
 
         while isPlaying and currentPlayId == thisPlayId and noteIdx <= #noteEvents do
             if seekTimeRequested then
@@ -1232,30 +1244,46 @@ playButton.MouseButton1Click:Connect(function()
                 while noteIdx <= #noteEvents and noteEvents[noteIdx].startTime < currentElapsedTime do
                     noteIdx = noteIdx + 1
                 end
-                lastClock = os.clock()
+                songStartTime = os.clock()
+                startSongTimeOffset = currentElapsedTime
             end
 
             if isPaused then
-                wait(0.05)
-                lastClock = os.clock()
+                RunService.Heartbeat:Wait()
+                songStartTime = os.clock()
+                startSongTimeOffset = currentElapsedTime
             else
-                local userSpeed = tonumber(speedInput.Text) or 1.0
-                if userSpeed <= 0 then userSpeed = 1.0 end
+                local currentUserSpeed = tonumber(speedInput.Text) or 1.0
+                if currentUserSpeed <= 0 then currentUserSpeed = 1.0 end
+                
+                -- Smoothly handle mid-song speed changes
+                if currentUserSpeed ~= lastUserSpeed then
+                    songStartTime = os.clock()
+                    startSongTimeOffset = currentElapsedTime
+                    lastUserSpeed = currentUserSpeed
+                end
 
-                local nextNote = noteEvents[noteIdx]
-                if nextNote then
+                -- Use exact Absolute Time tracking so the song perfectly ignores lag spikes
+                currentElapsedTime = startSongTimeOffset + (os.clock() - songStartTime) * currentUserSpeed
+
+                while noteIdx <= #noteEvents do
+                    local nextNote = noteEvents[noteIdx]
                     if currentElapsedTime >= nextNote.startTime then
                         local transpose = tonumber(transposeInput.Text) or 0
                         local keyNote = midiNoteToKeyData(nextNote.note, transpose)
 
                         if keyNote then
-                            local scaledDuration = nextNote.duration / userSpeed
+                            local scaledDuration = nextNote.duration / currentUserSpeed
                             local dropHeight = noteDropArea.AbsoluteSize.Y
                             if dropHeight <= 0 then dropHeight = 84 end
-                            local leadTime = dropHeight / (140 * userSpeed)
+                            local leadTime = dropHeight / (140 * currentUserSpeed)
+                            
+                            -- Compensate for late frames (frame drops) so notes don't clump together
+                            local timeLate = currentElapsedTime - nextNote.startTime
+                            local realTimeLate = timeLate / currentUserSpeed
 
                             if keyNote.data then
-                                spawnFallingNote(keyNote.data, nextNote.duration, userSpeed)
+                                spawnFallingNote(keyNote.data, nextNote.duration, currentUserSpeed)
                             end
 
                             local isDrum = (nextNote.channel == 9)
@@ -1266,13 +1294,17 @@ playButton.MouseButton1Click:Connect(function()
                                 local capturedKeyData = keyNote.data
                                 local capturedPlayId = thisPlayId
 
-                                delay(leadTime, function()
+                                -- Ensure exact rhythms are maintained regardless of execution delay
+                                local pressDelay = math.max(0, leadTime - realTimeLate)
+                                local releaseDelay = math.max(0, (leadTime + scaledDuration) - realTimeLate)
+
+                                delay(pressDelay, function()
                                     if currentPlayId == capturedPlayId and isPlaying then
                                         pressKeyChar(capturedChar, capturedKeyData)
                                     end
                                 end)
 
-                                delay(leadTime + scaledDuration, function()
+                                delay(releaseDelay, function()
                                     if currentPlayId == capturedPlayId then
                                         releaseKeyChar(capturedChar)
                                     end
@@ -1280,18 +1312,12 @@ playButton.MouseButton1Click:Connect(function()
                             end
                         end
                         noteIdx = noteIdx + 1
+                    else
+                        break -- Stop checking notes if the next one isn't ready to play yet
                     end
                 end
 
-                wait()
-
-                local nowClock = os.clock()
-                local realDelta = nowClock - lastClock
-                lastClock = nowClock
-
-                realDelta = math.min(realDelta, 0.25)
-
-                currentElapsedTime = currentElapsedTime + (realDelta * userSpeed)
+                RunService.Heartbeat:Wait() -- RunService is significantly more accurate than wait()
 
                 if not isScrubbing and totalSongDuration > 0 then
                     local pct = currentElapsedTime / totalSongDuration
