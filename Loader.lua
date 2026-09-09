@@ -59,5 +59,6 @@ AddSong("Coin Locker Baby (コインロッカーベイビー) - MARETU.mid.rtx")
 AddSong("Looping The Rooms (FULL Piano).mid.rtx")
 AddSong("Rabbit Hole - DECO_27 (feat_ Hatsune Miku [AS SAWTONE]).mid.rtx")
 AddSong("The Disappearance of Hatsune Miku V2 .mid.rtx")
+AddSong("Deltarune - The World Revolving - MIDI by LukeeGD.mid.mid.rtx")
 
 loadstring(game:HttpGet("https://raw.githubusercontent.com/g4zwr/Midi-Auto-Player/refs/heads/main/pianista.lua"))()
