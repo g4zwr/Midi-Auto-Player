@@ -1,26 +1,15 @@
 --[[
 	MIT License
-
 	Copyright (c) 2026 g4zwr
-
-	Permission is hereby granted, free of charge, to any person obtaining a copy
-	of this software and associated documentation files (the "Software"), to deal
-	in the Software without restriction, including without limitation the rights
-	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-	copies of the Software, and to permit persons to whom the Software is
-	furnished to do so, subject to the following conditions:
-
-	The above copyright notice and this permission notice shall be included in all
-	copies or substantial portions of the Software.
-
-	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-	SOFTWARE.
+	
+    [License details omitted for brevity]
 ]]
+
+if getgenv().PianoAutoplayer then
+    return
+end
+
+getgenv().PianoAutoplayer = true
 
 local wait = task.wait
 local delay = task.delay
@@ -32,18 +21,20 @@ local RGB = Color3.fromRGB
 local Inst = Instance.new
 
 local TOGGLE_KEY = Enum.KeyCode.RightControl
-local SELECTION_DEBOUNCE = 0.5-- seconds to wait after last click
+local SELECTION_DEBOUNCE = 0.5 
 
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
-local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
 local localPlayer = Players.LocalPlayer
 local targetParent = CoreGui:FindFirstChild("RobloxGui") or localPlayer:WaitForChild("PlayerGui")
 
+---------------------------------------------------------
+-- UI UTILITY FUNCTIONS
+---------------------------------------------------------
 local createUI = function(className, props, parent)
     local inst = Inst(className)
     for k, v in pairs(props) do inst[k] = v end
@@ -127,7 +118,6 @@ end
 workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(updateScale)
 updateScale()
 
--- Main Master Toggle Button
 local toggleButton = createUI("TextButton", {
     Size = UDim2(0, 44, 0, 44),
     Position = UDim2(0, 15, 0, 15),
@@ -242,7 +232,6 @@ createUI("UIListLayout", {
     Parent = rightPanel
 })
 addPadding(rightPanel, 4, 4, 4, 4)
-
 
 ---------------------------------------------------------
 -- WINDOW 2: PIANO PLAYER WINDOW
@@ -463,7 +452,6 @@ local pauseButton = createUI("TextButton", {
 })
 addCorner(pauseButton, 6)
 
-
 ---------------------------------------------------------
 -- MINIMIZE & TOGGLE LOGIC
 ---------------------------------------------------------
@@ -498,7 +486,6 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         end
     end
 end)
-
 
 ---------------------------------------------------------
 -- KEYBOARD & PIANO VISUALIZER SETUP
@@ -602,46 +589,54 @@ local function midiNoteToKeyData(noteNumber, transposeSemitones)
     return chromaticNotes[idx]
 end
 
-local function clearNoteVisuals()
-    for _, child in pairs(noteDropArea:GetChildren()) do
-        if child:IsA("Frame") then child:Destroy() end
+---------------------------------------------------------
+-- ANTI-LAG OBJECT POOLING FOR VISUALIZER
+---------------------------------------------------------
+local notePool = {}
+
+local function getNoteFrame()
+    if #notePool > 0 then
+        local frame = table.remove(notePool)
+        frame.Visible = true
+        return frame
     end
-end
-
-local spawnFallingNote = function(keyData, rawDuration, userSpeed)
-    local baseSpeed = 140
-    local effectiveSpeed = baseSpeed * userSpeed
-    local dropHeight = noteDropArea.AbsoluteSize.Y
-    if dropHeight <= 0 then dropHeight = 84 end
-
-    local noteHeight = math.max(rawDuration * baseSpeed, 6)
-    local totalDistance = dropHeight + noteHeight
-    local fallDuration = totalDistance / effectiveSpeed
-
-    local noteBlock = createUI("Frame", {
-        Size = UDim2(keyData.width, 0, 0, noteHeight),
-        Position = UDim2(keyData.xPos, 0, 0, -noteHeight),
-        BackgroundColor3 = keyData.isBlack and RGB(180, 180, 250) or RGB(255, 255, 255),
+    local frame = createUI("Frame", {
+        BackgroundColor3 = RGB(255, 255, 255),
         ZIndex = 2,
         Parent = noteDropArea
     })
-    addCorner(noteBlock, 3)
-
-    local tween = TweenService:Create(noteBlock, TweenInfo.new(fallDuration, Enum.EasingStyle.Linear), {
-        Position = UDim2(keyData.xPos, 0, 1, 0)
-    })
-
-    tween.Completed:Connect(function()
-        if noteBlock and noteBlock.Parent then noteBlock:Destroy() end
-    end)
-
-    tween:Play()
+    addCorner(frame, 3)
+    return frame
 end
 
+local function recycleNoteFrame(frame)
+    frame.Visible = false
+    table.insert(notePool, frame)
+end
+
+local function clearNoteVisuals()
+    for _, child in pairs(noteDropArea:GetChildren()) do
+        if child:IsA("Frame") and child.Visible then
+            recycleNoteFrame(child)
+        end
+    end
+end
+
+---------------------------------------------------------
+-- VIRTUAL INPUT MANAGER WRAPPERS
+---------------------------------------------------------
 local currentPlayId = 0
 local activeKeyStates = {}
 local shiftedKeyCount = 0
 local stopPlayback
+
+local function pressVirtualKey(keyCode)
+    VirtualInputManager:SendKeyEvent(true, keyCode, false, game)
+end
+
+local function releaseVirtualKey(keyCode)
+    VirtualInputManager:SendKeyEvent(false, keyCode, false, game)
+end
 
 local function isShiftedChar(char)
     if not char then return false end
@@ -654,18 +649,18 @@ local function pressKeyChar(char, keyData)
     local existing = activeKeyStates[char]
     if existing then
         existing.refCount = existing.refCount + 1
-        VirtualInputManager:SendKeyEvent(false, existing.keyCode, false, game)
+        releaseVirtualKey(existing.keyCode)
         
         if activeKeyStates[char] then
             if existing.isShifted then
-                VirtualInputManager:SendKeyEvent(true, existing.keyCode, false, game)
+                pressVirtualKey(existing.keyCode)
             else
                 if shiftedKeyCount > 0 then
-                    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.LeftShift, false, game)
-                    VirtualInputManager:SendKeyEvent(true, existing.keyCode, false, game)
-                    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.LeftShift, false, game)
+                    releaseVirtualKey(Enum.KeyCode.LeftShift)
+                    pressVirtualKey(existing.keyCode)
+                    pressVirtualKey(Enum.KeyCode.LeftShift)
                 else
-                    VirtualInputManager:SendKeyEvent(true, existing.keyCode, false, game)
+                    pressVirtualKey(existing.keyCode)
                 end
             end
             existing.data.frame.BackgroundColor3 = RGB(100, 120, 255)
@@ -683,17 +678,17 @@ local function pressKeyChar(char, keyData)
 
     if shifted then
         if shiftedKeyCount == 0 then
-            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.LeftShift, false, game)
+            pressVirtualKey(Enum.KeyCode.LeftShift)
         end
         shiftedKeyCount = shiftedKeyCount + 1
-        VirtualInputManager:SendKeyEvent(true, keyCode, false, game)
+        pressVirtualKey(keyCode)
     else
         if shiftedKeyCount > 0 then
-            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.LeftShift, false, game)
-            VirtualInputManager:SendKeyEvent(true, keyCode, false, game)
-            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.LeftShift, false, game)
+            releaseVirtualKey(Enum.KeyCode.LeftShift)
+            pressVirtualKey(keyCode)
+            pressVirtualKey(Enum.KeyCode.LeftShift)
         else
-            VirtualInputManager:SendKeyEvent(true, keyCode, false, game)
+            pressVirtualKey(keyCode)
         end
     end
 
@@ -707,13 +702,13 @@ local function releaseKeyChar(char)
     state.refCount = state.refCount - 1
     if state.refCount > 0 then return end
 
-    VirtualInputManager:SendKeyEvent(false, state.keyCode, false, game)
+    releaseVirtualKey(state.keyCode)
     state.data.frame.BackgroundColor3 = state.data.isBlack and RGB(15, 15, 18) or RGB(240, 240, 245)
 
     if state.isShifted then
         shiftedKeyCount = math.max(0, shiftedKeyCount - 1)
         if shiftedKeyCount == 0 then
-            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.LeftShift, false, game)
+            releaseVirtualKey(Enum.KeyCode.LeftShift)
         end
     end
 
@@ -726,7 +721,7 @@ local function releaseAllKeys()
         releaseKeyChar(char)
     end
     shiftedKeyCount = 0
-    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.LeftShift, false, game)
+    releaseVirtualKey(Enum.KeyCode.LeftShift)
 end
 
 ---------------------------------------------------------
@@ -914,6 +909,9 @@ local function showPreviewFreezeFrame(noteEvents)
 
     if #noteEvents == 0 then return end
 
+    -- Skip building preview frames while the piano window is hidden/minimized
+    if not (pianoFrame.Visible and not isPianoMinimized) then return end
+
     local previewWindowSeconds = 2
     local baseSpeed = 140
     local dropHeight = noteDropArea.AbsoluteSize.Y
@@ -927,14 +925,10 @@ local function showPreviewFreezeFrame(noteEvents)
                 local noteHeight = math.max(note.duration * baseSpeed, 6)
                 local yOffset = dropHeight - (note.startTime * baseSpeed) - noteHeight
 
-                local noteBlock = createUI("Frame", {
-                    Size = UDim2(keyData.data.width, 0, 0, noteHeight),
-                    Position = UDim2(keyData.data.xPos, 0, 0, yOffset),
-                    BackgroundColor3 = keyData.data.isBlack and RGB(180, 180, 250) or RGB(255, 255, 255),
-                    ZIndex = 2,
-                    Parent = noteDropArea
-                })
-                addCorner(noteBlock, 3)
+                local frame = getNoteFrame()
+                frame.Size = UDim2(keyData.data.width, 0, 0, noteHeight)
+                frame.Position = UDim2(keyData.data.xPos, 0, 0, yOffset)
+                frame.BackgroundColor3 = keyData.data.isBlack and RGB(180, 180, 250) or RGB(255, 255, 255)
             end
         end
     end
@@ -1092,7 +1086,6 @@ end
 searchBox:GetPropertyChangedSignal("Text"):Connect(updateMidiListUI)
 refreshButton.MouseButton1Click:Connect(refreshFileList)
 
-
 ---------------------------------------------------------
 -- AUDIO PLAYBACK CONTROLS
 ---------------------------------------------------------
@@ -1102,6 +1095,14 @@ local totalSongDuration = 0
 local currentElapsedTime = 0
 local seekTimeRequested = nil
 local isScrubbing = false
+
+-- The piano window (visualizerContainer) can be minimized or fully hidden
+-- (toggle key / drag-hidden). Rendering/moving note frames while it's not
+-- visible wastes frame time for no visible benefit, so playback checks this
+-- every tick and skips the visual half of the loop when it's false.
+local function isPianoVisible()
+    return pianoFrame.Visible and not isPianoMinimized
+end
 
 local function formatTime(seconds)
     seconds = math.max(0, math.floor(seconds))
@@ -1162,6 +1163,7 @@ stopPlayback = function()
     pauseButton.Text = "Pause"
     updateSliderVisual(0)
     timeLabel.Text = "00:00 / 00:00"
+    clearNoteVisuals()
 end
 
 pauseButton.MouseButton1Click:Connect(function()
@@ -1226,7 +1228,11 @@ playButton.MouseButton1Click:Connect(function()
 
     spawn(function()
         currentElapsedTime = 0
-        local noteIdx = 1
+        local audioIdx = 1
+        local visualIdx = 1
+        
+        local activeVisuals = {}
+        local releaseQueue = {}
         
         local songStartTime = os.clock()
         local startSongTimeOffset = 0
@@ -1234,16 +1240,28 @@ playButton.MouseButton1Click:Connect(function()
         local lastUserSpeed = tonumber(speedInput.Text) or 1.0
         if lastUserSpeed <= 0 then lastUserSpeed = 1.0 end
 
-        while isPlaying and currentPlayId == thisPlayId and noteIdx <= #noteEvents do
+        -- Purely deterministic high-accuracy playback loop
+        while isPlaying and currentPlayId == thisPlayId do
+            
             if seekTimeRequested then
                 currentElapsedTime = seekTimeRequested
                 seekTimeRequested = nil
+                
                 releaseAllKeys()
                 clearNoteVisuals()
-                noteIdx = 1
-                while noteIdx <= #noteEvents and noteEvents[noteIdx].startTime < currentElapsedTime do
-                    noteIdx = noteIdx + 1
+                activeVisuals = {}
+                releaseQueue = {}
+                
+                audioIdx = 1
+                while audioIdx <= #noteEvents and noteEvents[audioIdx].startTime < currentElapsedTime do
+                    audioIdx = audioIdx + 1
                 end
+                
+                visualIdx = 1
+                while visualIdx <= #noteEvents and noteEvents[visualIdx].startTime + (noteEvents[visualIdx].duration / (tonumber(speedInput.Text) or 1.0)) < currentElapsedTime do
+                    visualIdx = visualIdx + 1
+                end
+                
                 songStartTime = os.clock()
                 startSongTimeOffset = currentElapsedTime
             end
@@ -1256,68 +1274,122 @@ playButton.MouseButton1Click:Connect(function()
                 local currentUserSpeed = tonumber(speedInput.Text) or 1.0
                 if currentUserSpeed <= 0 then currentUserSpeed = 1.0 end
                 
-                -- Smoothly handle mid-song speed changes
                 if currentUserSpeed ~= lastUserSpeed then
                     songStartTime = os.clock()
                     startSongTimeOffset = currentElapsedTime
                     lastUserSpeed = currentUserSpeed
                 end
 
-                -- Use exact Absolute Time tracking so the song perfectly ignores lag spikes
                 currentElapsedTime = startSongTimeOffset + (os.clock() - songStartTime) * currentUserSpeed
 
-                while noteIdx <= #noteEvents do
-                    local nextNote = noteEvents[noteIdx]
-                    if currentElapsedTime >= nextNote.startTime then
-                        local transpose = tonumber(transposeInput.Text) or 0
-                        local keyNote = midiNoteToKeyData(nextNote.note, transpose)
+                local dropHeight = noteDropArea.AbsoluteSize.Y
+                if dropHeight <= 0 then dropHeight = 84 end
+                local baseSpeed = 140
+                local effectiveSpeed = baseSpeed * currentUserSpeed
+                local leadTime = dropHeight / effectiveSpeed
 
-                        if keyNote then
-                            local scaledDuration = nextNote.duration / currentUserSpeed
-                            local dropHeight = noteDropArea.AbsoluteSize.Y
-                            if dropHeight <= 0 then dropHeight = 84 end
-                            local leadTime = dropHeight / (140 * currentUserSpeed)
-                            
-                            -- Compensate for late frames (frame drops) so notes don't clump together
-                            local timeLate = currentElapsedTime - nextNote.startTime
-                            local realTimeLate = timeLate / currentUserSpeed
+                local pianoVisible = isPianoVisible()
 
-                            if keyNote.data then
-                                spawnFallingNote(keyNote.data, nextNote.duration, currentUserSpeed)
-                            end
+                -- 1. Visualizer Setup (frame creation is skipped entirely while
+                --    the piano window is hidden/minimized; audio timing below
+                --    is unaffected since it tracks currentElapsedTime directly)
+                while visualIdx <= #noteEvents do
+                    local note = noteEvents[visualIdx]
+                    if currentElapsedTime + leadTime >= note.startTime then
+                        local isDrum = (note.channel == 9)
 
-                            local isDrum = (nextNote.channel == 9)
-                            local isVisualNote = (nextNote.velocity and nextNote.velocity <= 2)
-
-                            if not isDrum and not isVisualNote then
-                                local capturedChar = keyNote.char
-                                local capturedKeyData = keyNote.data
-                                local capturedPlayId = thisPlayId
-
-                                -- Ensure exact rhythms are maintained regardless of execution delay
-                                local pressDelay = math.max(0, leadTime - realTimeLate)
-                                local releaseDelay = math.max(0, (leadTime + scaledDuration) - realTimeLate)
-
-                                delay(pressDelay, function()
-                                    if currentPlayId == capturedPlayId and isPlaying then
-                                        pressKeyChar(capturedChar, capturedKeyData)
-                                    end
-                                end)
-
-                                delay(releaseDelay, function()
-                                    if currentPlayId == capturedPlayId then
-                                        releaseKeyChar(capturedChar)
-                                    end
-                                end)
+                        if not isDrum and pianoVisible then
+                            local transpose = tonumber(transposeInput.Text) or 0
+                            local keyNote = midiNoteToKeyData(note.note, transpose)
+                            if keyNote and keyNote.data then
+                                local scaledDuration = note.duration / currentUserSpeed
+                                local frame = getNoteFrame()
+                                frame.BackgroundColor3 = keyNote.data.isBlack and RGB(180, 180, 250) or RGB(255, 255, 255)
+                                
+                                table.insert(activeVisuals, {
+                                    frame = frame,
+                                    xPos = keyNote.data.xPos,
+                                    width = keyNote.data.width,
+                                    hitTime = note.startTime,
+                                    endTime = note.startTime + scaledDuration,
+                                    height = math.max(note.duration * baseSpeed, 6),
+                                    effectiveSpeed = effectiveSpeed,
+                                    dropHeight = dropHeight
+                                })
                             end
                         end
-                        noteIdx = noteIdx + 1
+                        visualIdx = visualIdx + 1
                     else
-                        break -- Stop checking notes if the next one isn't ready to play yet
+                        break
                     end
                 end
 
-                RunService.Heartbeat:Wait() -- RunService is significantly more accurate than wait()
+                -- If the window just became hidden mid-song, recycle anything
+                -- still sitting on screen so it doesn't reappear stale later
+                if not pianoVisible and #activeVisuals > 0 then
+                    for i = #activeVisuals, 1, -1 do
+                        recycleNoteFrame(activeVisuals[i].frame)
+                        table.remove(activeVisuals, i)
+                    end
+                end
+
+                -- 2. Trigger Key Presses
+                while audioIdx <= #noteEvents do
+                    local note = noteEvents[audioIdx]
+                    if currentElapsedTime >= note.startTime then
+                        local isDrum = (note.channel == 9)
+                        local isVisualNote = (note.velocity and note.velocity <= 2)
+                        
+                        if not isDrum and not isVisualNote then
+                            local transpose = tonumber(transposeInput.Text) or 0
+                            local keyNote = midiNoteToKeyData(note.note, transpose)
+                            if keyNote and keyNote.data then
+                                pressKeyChar(keyNote.char, keyNote.data)
+                                table.insert(releaseQueue, {
+                                    time = note.startTime + (note.duration / currentUserSpeed),
+                                    char = keyNote.char
+                                })
+                            end
+                        end
+                        audioIdx = audioIdx + 1
+                    else
+                        break
+                    end
+                end
+
+                -- 3. Trigger Key Releases
+                for i = #releaseQueue, 1, -1 do
+                    if currentElapsedTime >= releaseQueue[i].time then
+                        releaseKeyChar(releaseQueue[i].char)
+                        table.remove(releaseQueue, i)
+                    end
+                end
+
+                -- 4. Mathematical Position Updates (Replaces Tweening)
+                --    Only touch frame Position/Size while the window is visible;
+                --    activeVisuals is already empty whenever it's hidden.
+                if pianoVisible then
+                    for i = #activeVisuals, 1, -1 do
+                        local vis = activeVisuals[i]
+                        if currentElapsedTime >= vis.endTime then
+                            recycleNoteFrame(vis.frame)
+                            table.remove(activeVisuals, i)
+                        else
+                            local timeRemaining = vis.hitTime - currentElapsedTime
+                            local yOffset = vis.dropHeight - (timeRemaining * vis.effectiveSpeed) - vis.height
+                            
+                            vis.frame.Position = UDim2(vis.xPos, 0, 0, yOffset)
+                            vis.frame.Size = UDim2(vis.width, 0, 0, vis.height)
+                        end
+                    end
+                end
+
+                -- Close Loop when song completes completely
+                if audioIdx > #noteEvents and #activeVisuals == 0 and #releaseQueue == 0 then
+                    break
+                end
+
+                RunService.Heartbeat:Wait()
 
                 if not isScrubbing and totalSongDuration > 0 then
                     local pct = currentElapsedTime / totalSongDuration
@@ -1328,15 +1400,7 @@ playButton.MouseButton1Click:Connect(function()
         end
 
         if currentPlayId == thisPlayId then
-            isPlaying = false
-            isPaused = false
-            playButton.Text = "Play"
-            playButton.BackgroundColor3 = RGB(255, 255, 255)
-            playButton.TextColor3 = RGB(10, 10, 10)
-            pauseButton.Text = "Pause"
-            updateSliderVisual(0)
-            timeLabel.Text = "00:00 / 00:00"
-            releaseAllKeys()
+            stopPlayback()
         end
     end)
 end)
