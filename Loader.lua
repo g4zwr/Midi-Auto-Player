@@ -4,6 +4,12 @@
 	...
 ]]
 
+if getgenv().MidiAutoPlayerLoaded then
+    warn("[MidiPlayer] Script is already running!")
+    return
+end
+getgenv().MidiAutoPlayerLoaded = true
+
 local RepoOwner = "g4zwr"
 local RepoName  = "Midi-Auto-Player"
 local RepoPath  = "" 
