@@ -12,7 +12,7 @@ getgenv().MidiAutoPlayerLoaded = true
 
 local RepoOwner = "g4zwr"
 local RepoName  = "Midi-Auto-Player"
-local RepoPath  = "" 
+local RepoPath  = "midi/" 
 local RepoBase  = "https://raw.githubusercontent.com/" .. RepoOwner .. "/" .. RepoName .. "/refs/heads/main/"
 local ApiUrl    = "https://api.github.com/repos/" .. RepoOwner .. "/" .. RepoName .. "/contents/" .. RepoPath
 
@@ -34,7 +34,7 @@ local function AddSong(f)
     local localName = NormalizeToMid(f)
     if isfile(localName) then return end
 
-    local url = RepoBase .. UrlEncode(f)
+    local url = RepoBase .. RepoPath .. UrlEncode(f)
     local ok, data = pcall(game.HttpGet, game, url)
     if ok then
         writefile(localName, data)
