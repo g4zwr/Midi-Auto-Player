@@ -7,7 +7,7 @@
 </p>
 
 <a href="https://git.io/typing-svg">
-  <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=20&pause=1000&color=FFFFFF&background=00000000&center=true&vCenter=true&width=650&height=50&lines=Full+7%2B+Octave+Key+Mapping+(85+Keys);Smart+Shift-State+Collision+Prevention;Dynamic+Real-Time+Falling-Note+Visualizer;Automated+MIDI+%2F+RTX+Workspace+Scanner" alt="Typing Animation" />
+  <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=20&pause=1000&color=FFFFFF&background=00000000&center=true&vCenter=true&width=650&height=50&lines=Full+5+Octave+Key+Mapping;Smart+Shift-State+Collision+Prevention;Dynamic+Real-Time+Falling-Note+Visualizer;Automated+MIDI+%2F+RTX+Workspace+Scanner" alt="Typing Animation" />
 </a>
 
 <br />
