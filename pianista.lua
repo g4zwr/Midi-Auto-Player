@@ -38,6 +38,10 @@ local targetParent = CoreGui:FindFirstChild("RobloxGui") or localPlayer:WaitForC
 local createUI = function(className, props, parent)
     local inst = Inst(className)
     for k, v in pairs(props) do inst[k] = v end
+    -- never let a TextBox fall back to Roblox's default "Textbox" text
+    if className == "TextBox" and props.Text == nil then
+        inst.Text = ""
+    end
     if parent then inst.Parent = parent end
     return inst
 end
@@ -168,6 +172,7 @@ local midiTitleLabel = createUI("TextLabel", {
     Font = Enum.Font.GothamBold,
     TextSize = 13,
     TextXAlignment = Enum.TextXAlignment.Left,
+    TextTruncate = Enum.TextTruncate.AtEnd,
     Parent = midiTopBar
 })
 
@@ -889,6 +894,44 @@ local function parseMidiBytes(data)
     return { division = division, events = allEvents }
 end
 
+-- Rate limit: never trigger more than NOTE_RATE_LIMIT notes inside one
+-- NOTE_RATE_WINDOW second bucket. When a bucket overflows, keep the
+-- loudest notes (highest MIDI velocity) and drop the rest. Drum notes
+-- (channel 10) are never played, so they are removed up front and do
+-- not count against the quota.
+local NOTE_RATE_LIMIT = 50
+local NOTE_RATE_WINDOW = 1
+
+local function applyRateLimit(events)
+    local playable = {}
+    for _, e in ipairs(events) do
+        if e.channel ~= 9 then table.insert(playable, e) end
+    end
+
+    local buckets = {}
+    for _, e in ipairs(playable) do
+        local b = math.floor(e.startTime / NOTE_RATE_WINDOW)
+        if not buckets[b] then buckets[b] = {} end
+        table.insert(buckets[b], e)
+    end
+
+    local kept = {}
+    for _, list in pairs(buckets) do
+        if #list > NOTE_RATE_LIMIT then
+            table.sort(list, function(x, y)
+                if x.velocity ~= y.velocity then return x.velocity > y.velocity end
+                return x.startTime < y.startTime
+            end)
+            for i = 1, NOTE_RATE_LIMIT do table.insert(kept, list[i]) end
+        else
+            for _, e in ipairs(list) do table.insert(kept, e) end
+        end
+    end
+
+    table.sort(kept, function(a, b) return a.startTime < b.startTime end)
+    return kept
+end
+
 local function buildNoteTimeline(midiData)
     local secPerTick = (500000 / 1000000) / midiData.division
     local currentTick = 0
@@ -946,7 +989,7 @@ local function buildNoteTimeline(midiData)
         end
     end
 
-    return noteEvents
+    return applyRateLimit(noteEvents)
 end
 
 local previewPlayId = 0
@@ -990,6 +1033,38 @@ local selectedFilePath = nil
 local cachedFilePath = nil
 local cachedNoteEvents = nil
 local pendingSelectionToken = 0
+
+-- category ("type") grouping: derived from each file's parent folder
+local currentCategory = nil
+local categoryNames = {}
+local filesByCategory = {}
+local hasCategories = false
+
+local function categorizeFiles()
+    filesByCategory = {}
+    categoryNames = {}
+    local hasFolder = false
+    for _, filePath in ipairs(midiFiles) do
+        local dir = filePath:match("^(.*)[/\\][^/\\]+$")
+        local cat
+        if dir and dir ~= "" then
+            cat = dir:match("([^/\\]+)$")
+            hasFolder = true
+        end
+        cat = cat or "Other"
+        if not filesByCategory[cat] then
+            filesByCategory[cat] = {}
+            table.insert(categoryNames, cat)
+        end
+        table.insert(filesByCategory[cat], filePath)
+    end
+    table.sort(categoryNames, function(a, b)
+        if a == "Other" then return false end
+        if b == "Other" then return true end
+        return a:lower() < b:lower()
+    end)
+    hasCategories = hasFolder
+end
 
 local function getDirListing(path)
     if listfiles then
@@ -1048,6 +1123,19 @@ local function scanDirectory(path, resultsSet, depth)
     end
 end
 
+local midiBackBtn = createUI("TextButton", {
+    Size = UDim2(0, 22, 0, 22),
+    Position = UDim2(0, 0, 0.5, -11),
+    BackgroundColor3 = RGB(30, 30, 35),
+    TextColor3 = RGB(200, 200, 200),
+    Text = "‹",
+    Font = Enum.Font.GothamBold,
+    TextSize = 14,
+    Visible = false,
+    Parent = midiTopBar
+})
+addCorner(midiBackBtn, 5)
+
 local function updateMidiListUI()
     for _, child in pairs(rightPanel:GetChildren()) do
         if child:IsA("TextButton") then child:Destroy() end
@@ -1057,81 +1145,143 @@ local function updateMidiListUI()
     local yOffset = 0
     local shown = 0
 
-    for _, filePath in ipairs(midiFiles) do
-        local displayName = filePath:match("([^/\\]+)$") or filePath
-        if filter == "" or string.find(string.lower(displayName), filter, 1, true) then
-            shown = shown + 1
-            local isSelected = (filePath == selectedFilePath)
-            local btn = createUI("TextButton", {
-                Size = UDim2(1, 0, 0, 26),
-                BackgroundColor3 = isSelected and RGB(26, 32, 58) or RGB(18, 18, 22),
-                TextColor3 = isSelected and RGB(235, 238, 255) or RGB(220, 220, 220),
-                Text = displayName,
-                Font = Enum.Font.Gotham,
-                TextSize = 11,
-                TextXAlignment = Enum.TextXAlignment.Left,
-                TextTruncate = Enum.TextTruncate.AtEnd,
-                Parent = rightPanel
-            })
-            addCorner(btn, 4)
-            addPadding(btn, 0, 0, 10, 6)
-            if isSelected then
-                local selBar = createUI("Frame", {
-                    Size = UDim2(0, 3, 1, -8),
-                    Position = UDim2(0, 3, 0, 4),
-                    BackgroundColor3 = ACCENT,
-                    Parent = btn
-                })
-                addCorner(selBar, 2)
+    local atRoot = (currentCategory == nil)
+    local showAllTypes = atRoot and hasCategories and filter == ""
+    local showTypeHits = atRoot and hasCategories and filter ~= ""
+    local scope = midiFiles
+    if currentCategory then
+        scope = filesByCategory[currentCategory] or {}
+    end
+
+    local function addTypeRow(cat, files)
+        local catBtn = createUI("TextButton", {
+            Size = UDim2(1, 0, 0, 26),
+            BackgroundColor3 = RGB(18, 18, 22),
+            TextColor3 = RGB(220, 220, 220),
+            Text = cat .. "   ›   " .. #files,
+            Font = Enum.Font.Gotham,
+            TextSize = 11,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            TextTruncate = Enum.TextTruncate.AtEnd,
+            Parent = rightPanel
+        })
+        addCorner(catBtn, 4)
+        addPadding(catBtn, 0, 0, 10, 6)
+        shown = shown + 1
+        catBtn.MouseButton1Click:Connect(function()
+            currentCategory = cat
+            if searchBox.Text ~= "" then searchBox.Text = "" end
+            updateMidiListUI()
+        end)
+        yOffset = yOffset + 30
+    end
+
+    if showAllTypes or showTypeHits then
+        -- root view: every type, or (while searching) types whose name matches
+        for _, cat in ipairs(categoryNames) do
+            if showAllTypes or string.find(string.lower(cat), filter, 1, true) then
+                addTypeRow(cat, filesByCategory[cat])
             end
-
-            btn.MouseButton1Click:Connect(function()
-                pendingSelectionToken = pendingSelectionToken + 1
-                local thisToken = pendingSelectionToken
-                statusLabel.Text = "Selecting: " .. displayName .. "..."
-
-                delay(SELECTION_DEBOUNCE, function()
-                    if thisToken ~= pendingSelectionToken then return end
-
-                    if stopPlayback then stopPlayback() end
-
-                    selectedFilePath = filePath
-                    statusLabel.Text = "Selected: " .. displayName
-                    cachedFilePath = nil
-                    cachedNoteEvents = nil
-                    updateMidiListUI()
-
-                    if readfile then
-                        local ok, rawData = pcall(readfile, filePath)
-                        if ok and rawData then
-                            local parseOk, midiData = pcall(parseMidiBytes, rawData)
-                            if parseOk and midiData then
-                                local events = buildNoteTimeline(midiData)
-                                cachedFilePath = filePath
-                                cachedNoteEvents = events
-                                showPreviewFreezeFrame(events)
-                            else
-                                statusLabel.Text = "Selected: " .. displayName .. " (preview unavailable)"
-                            end
-                        end
-                    end
-                end)
-            end)
-            yOffset = yOffset + 30
         end
     end
-    if #midiFiles == 0 then
-        midiTitleLabel.Text = "MIDI List  ·  0"
-    elseif filter ~= "" then
-        midiTitleLabel.Text = "MIDI List  ·  " .. shown .. " / " .. #midiFiles
+
+    if not showAllTypes then
+        -- songs: inside the current type, or across every folder while
+        -- searching from the root
+        for _, filePath in ipairs(scope) do
+            local displayName = filePath:match("([^/\\]+)$") or filePath
+            if filter == "" or string.find(string.lower(displayName), filter, 1, true) then
+                shown = shown + 1
+                local isSelected = (filePath == selectedFilePath)
+                local btn = createUI("TextButton", {
+                    Size = UDim2(1, 0, 0, 26),
+                    BackgroundColor3 = isSelected and RGB(26, 32, 58) or RGB(18, 18, 22),
+                    TextColor3 = isSelected and RGB(235, 238, 255) or RGB(220, 220, 220),
+                    Text = displayName,
+                    Font = Enum.Font.Gotham,
+                    TextSize = 11,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    TextTruncate = Enum.TextTruncate.AtEnd,
+                    Parent = rightPanel
+                })
+                addCorner(btn, 4)
+                addPadding(btn, 0, 0, 10, 6)
+                if isSelected then
+                    local selBar = createUI("Frame", {
+                        Size = UDim2(0, 3, 1, -8),
+                        Position = UDim2(0, 3, 0, 4),
+                        BackgroundColor3 = ACCENT,
+                        Parent = btn
+                    })
+                    addCorner(selBar, 2)
+                end
+
+                btn.MouseButton1Click:Connect(function()
+                    pendingSelectionToken = pendingSelectionToken + 1
+                    local thisToken = pendingSelectionToken
+                    statusLabel.Text = "Selecting: " .. displayName .. "..."
+
+                    delay(SELECTION_DEBOUNCE, function()
+                        if thisToken ~= pendingSelectionToken then return end
+
+                        if stopPlayback then stopPlayback() end
+
+                        selectedFilePath = filePath
+                        statusLabel.Text = "Selected: " .. displayName
+                        cachedFilePath = nil
+                        cachedNoteEvents = nil
+                        updateMidiListUI()
+
+                        if readfile then
+                            local ok, rawData = pcall(readfile, filePath)
+                            if ok and rawData then
+                                local parseOk, midiData = pcall(parseMidiBytes, rawData)
+                                if parseOk and midiData then
+                                    local events = buildNoteTimeline(midiData)
+                                    cachedFilePath = filePath
+                                    cachedNoteEvents = events
+                                    showPreviewFreezeFrame(events)
+                                else
+                                    statusLabel.Text = "Selected: " .. displayName .. " (preview unavailable)"
+                                end
+                            end
+                        end
+                    end)
+                end)
+                yOffset = yOffset + 30
+            end
+        end
+    end
+
+    -- title, back button and empty state follow the current view
+    midiBackBtn.Visible = (currentCategory ~= nil)
+    if currentCategory then
+        local total = #scope
+        midiTitleLabel.Position = UDim2(0, 26, 0, 0)
+        midiTitleLabel.Size = UDim2(0.55, 0, 1, 0)
+        if filter ~= "" then
+            midiTitleLabel.Text = currentCategory .. "  ·  " .. shown .. " / " .. total
+        else
+            midiTitleLabel.Text = currentCategory .. "  ·  " .. total
+        end
     else
-        midiTitleLabel.Text = "MIDI List  ·  " .. #midiFiles
+        midiTitleLabel.Position = UDim2(0, 0, 0, 0)
+        midiTitleLabel.Size = UDim2(0.7, 0, 1, 0)
+        if filter ~= "" then
+            midiTitleLabel.Text = "MIDI List  ·  " .. shown .. " results"
+        elseif hasCategories then
+            midiTitleLabel.Text = "MIDI List  ·  " .. #categoryNames .. " types"
+        else
+            midiTitleLabel.Text = "MIDI List  ·  " .. #midiFiles
+        end
     end
 
     midiEmptyLabel.Visible = (shown == 0)
     if shown == 0 then
         if #midiFiles == 0 then
             midiEmptyLabel.Text = "No MIDI files found.\nPut .mid files in your workspace, then press Rescan Files."
+        elseif currentCategory then
+            midiEmptyLabel.Text = "This type has no songs yet."
         else
             midiEmptyLabel.Text = "No matches for \"" .. (searchBox.Text or "") .. "\""
         end
@@ -1154,10 +1304,14 @@ local function refreshFileList()
     for filepath, _ in pairs(resultsSet) do table.insert(midiFiles, filepath) end
     table.sort(midiFiles)
 
+    categorizeFiles()
+    currentCategory = nil
     updateMidiListUI()
 
     if #midiFiles == 0 then
         statusLabel.Text = "No .mid files found"
+    elseif hasCategories then
+        statusLabel.Text = "Found " .. #midiFiles .. " files in " .. #categoryNames .. " types"
     else
         statusLabel.Text = "Found " .. #midiFiles .. " files"
     end
@@ -1165,6 +1319,10 @@ end
 
 searchBox:GetPropertyChangedSignal("Text"):Connect(updateMidiListUI)
 refreshButton.MouseButton1Click:Connect(refreshFileList)
+midiBackBtn.MouseButton1Click:Connect(function()
+    currentCategory = nil
+    updateMidiListUI()
+end)
 
 ---------------------------------------------------------
 -- AUDIO PLAYBACK CONTROLS
@@ -1431,7 +1589,7 @@ playButton.MouseButton1Click:Connect(function()
                     local note = noteEvents[audioIdx]
                     if currentElapsedTime >= note.startTime then
                         local isDrum = (note.channel == 9)
-                        local isVisualNote = (note.velocity and note.velocity <= 2)
+                        local isVisualNote = (note.velocity and note.velocity == 0)
                         
                         if not isDrum and not isVisualNote then
                             local transpose = tonumber(transposeInput.Text) or 0

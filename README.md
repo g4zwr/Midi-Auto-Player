@@ -38,16 +38,21 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/g4zwr/Midi-Auto-Playe
 
 ## Directory Setup
 
-Put your MIDI files directly in the `workspace` folder the script scans on startup:
+Put your MIDI files directly in the `workspace` folder the script scans on startup — flat, or grouped into type folders:
 
 ```text
 workspace/
-├── song_one.mid
-├── song_two.midi
-└── song_three.rtx
+├── Games/
+│   ├── Undertale - Megalovania.mid
+│   └── Portal - Still Alive.mid
+├── Vocaloid/
+│   └── DAIDAIDAIKIRAI.mid
+├── The Living Tombstone/
+│   └── The Living Tombstone - Discord (Remix).mid
+└── loose_song.rtx
 ```
 
-`.rtx` and `.mid.rtx` files are automatically converted to `.mid` on scan — no manual renaming or subfolders needed.
+Folders become **types** in the MIDI List window: the list opens showing each type with its song count, and entering one shows all of its songs (use `‹` to go back). The search box filters types at the top level and songs inside a type. `.rtx` and `.mid.rtx` files are automatically converted to `.mid` on scan — no manual renaming needed.
 
 ---
 

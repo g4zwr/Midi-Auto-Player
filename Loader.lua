@@ -30,11 +30,29 @@ local function NormalizeToMid(name)
     return name
 end
 
+local function EncodePath(path)
+    local parts = {}
+    for segment in string.gmatch(path, "[^/]+") do
+        table.insert(parts, UrlEncode(segment))
+    end
+    return table.concat(parts, "/")
+end
+
 local function AddSong(f)
     local localName = NormalizeToMid(f)
     if isfile(localName) then return end
 
-    local url = RepoBase .. RepoPath .. UrlEncode(f)
+    -- older builds stored every song flat in the workspace root
+    local flatName = localName:match("([^/\\]+)$")
+    if flatName and flatName ~= localName and isfile(flatName) then return end
+
+    -- mirror the repo's type folder so the UI can group by it
+    local dir = localName:match("^(.*)[/\\][^/\\]+$")
+    if dir and dir ~= "" and makefolder then
+        pcall(makefolder, dir)
+    end
+
+    local url = RepoBase .. EncodePath(RepoPath .. f)
     local ok, data = pcall(game.HttpGet, game, url)
     if ok then
         writefile(localName, data)
@@ -44,29 +62,40 @@ local function AddSong(f)
     end
 end
 
-local function FetchSongList()
-    local ok, res = pcall(game.HttpGet, game, ApiUrl)
+local function FetchDir(url, prefix, depth)
+    local files = {}
+    if depth > 3 then return files end
+
+    local ok, res = pcall(game.HttpGet, game, url)
     if not ok then
         warn("[MidiPlayer] Failed to fetch repo listing: " .. tostring(res))
-        return {}
+        return files
     end
 
     local decodeOk, entries = pcall(HttpService.JSONDecode, HttpService, res)
     if not decodeOk then
         warn("[MidiPlayer] Failed to decode repo listing JSON")
-        return {}
+        return files
     end
 
-    local files = {}
     for _, entry in ipairs(entries) do
         if entry.type == "file" then
-            local name = entry.name
+            local name = prefix .. entry.name
             if name:match("%.mid$") or name:match("%.rtx$") then
                 table.insert(files, name)
+            end
+        elseif entry.type == "dir" then
+            local childUrl = "https://api.github.com/repos/" .. RepoOwner .. "/" .. RepoName .. "/contents/" .. EncodePath(RepoPath .. entry.name)
+            for _, sub in ipairs(FetchDir(childUrl, prefix .. entry.name .. "/", depth + 1)) do
+                table.insert(files, sub)
             end
         end
     end
     return files
+end
+
+local function FetchSongList()
+    return FetchDir(ApiUrl, "", 0)
 end
 
 local songList = FetchSongList()
