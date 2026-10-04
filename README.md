@@ -66,6 +66,20 @@ The `Vocaloid/` type includes current chart entries — **Tetoris** (Hiiragi Mag
 
 Arrangements are community uploads sourced from [onlinesequencer.net](https://onlinesequencer.net/sequences); please respect each uploader's terms.
 
+### The song manifest
+
+`midi/manifest.json` is the index of every song in the library — 987 files across 100 type folders in about 50 KB. `Loader.lua` downloads that one file to learn what to fetch, then pulls each song from `raw.githubusercontent.com`.
+
+The manifest exists because the loader previously walked the GitHub contents API one folder at a time. That cost one request per directory, so listing the library needed 101 requests against GitHub's 60 requests/hour unauthenticated limit — the walk could not complete, and the loader reported the API's rejection as a fetch failure while downloading zero songs. The manifest replaces all of that with a single request to the same host the loader already used successfully for the songs themselves.
+
+If you add or remove songs, regenerate it so the index matches the tree. The generator reads `git ls-files`, so it only lists files that are actually committed — a manifest that referenced an uncommitted file would 404 for everyone else:
+
+```bash
+python tools/make_manifest.py
+```
+
+`Loader.lua` keeps the old API walk as a fallback, so a stale loader still works against a repo without a manifest. It also reports a clear message instead of dying if the GUI download fails.
+
 ---
 
 ## Table of Contents
@@ -147,6 +161,8 @@ It addresses key layout limitations found in standard 5-octave players by introd
 | No MIDI files detected | Files not placed in scanned directory | Confirm files sit directly in `workspace/` |
 | Notes play out of key | Transpose offset left from previous session | Reset transpose to `0` before loading a new file |
 | Script fails to load | Raw URL incorrect or repo file renamed | Re-copy the **Raw** link from GitHub for the current filename |
+| `Failed to fetch repo listing` | `midi/manifest.json` is missing or unreachable | Open the manifest URL from a browser; if it 404s, the repo copy is stale |
+| `Found 0 song(s) in repo` | Manifest and API fallback both failed | Both listing sources are rate-limited or blocked; re-run after a few minutes |
 | Video not rendering in README | Used a `blob/` link or local file path instead of an uploaded attachment | Drag the video into an Issue/PR comment box to generate a `user-attachments/assets/...` URL |
 
 ---

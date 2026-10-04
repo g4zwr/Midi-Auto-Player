@@ -14,9 +14,29 @@ local RepoOwner = "g4zwr"
 local RepoName  = "Midi-Auto-Player"
 local RepoPath  = "midi/" 
 local RepoBase  = "https://raw.githubusercontent.com/" .. RepoOwner .. "/" .. RepoName .. "/refs/heads/main/"
-local ApiUrl    = "https://api.github.com/repos/" .. RepoOwner .. "/" .. RepoName .. "/contents/" .. RepoPath
+local ApiUrl    = "https://api.github.com/repos/" .. RepoOwner .. "/" .. RepoName .. "/contents/" .. RepoPath:gsub("/$", "")
+-- The listing is served from midi/manifest.json on raw.githubusercontent.com.
+-- Walking api.github.com once per folder used to cost one request per
+-- directory, and the repo has 100 of them -- far past GitHub's 60/hour
+-- unauthenticated cap, so the walk failed and the loader reported a 404/403
+-- from the API instead of a song list.
+local ManifestUrl = RepoBase .. RepoPath .. "manifest.json"
 
 local HttpService = game:GetService("HttpService")
+
+local GuiUrl = RepoBase .. "pianista.lua"
+
+-- fetch with a readable error instead of letting a raw HTTP failure abort
+-- the whole script after the songs have already downloaded
+local function FetchGui()
+    local ok, data = pcall(game.HttpGet, game, GuiUrl)
+    if not ok then
+        error("[MidiPlayer] Could not download the GUI from " .. GuiUrl ..
+              "\n          reason: " .. tostring(data) ..
+              "\n          Open that URL in your browser to check it, then re-run.")
+    end
+    return data
+end
 
 local function UrlEncode(str)
     return (str:gsub("([^%w%-%_%.%~])", function(c)
@@ -94,15 +114,93 @@ local function FetchDir(url, prefix, depth)
     return files
 end
 
+local function IsSafePath(path)
+    -- whole segments only: a title like "Devils... Monsters....mid" is fine,
+    -- but a ".." segment would climb out of the workspace
+    for segment in string.gmatch(path, "[^/\\]+") do
+        if segment == ".." or segment == "." then
+            return false
+        end
+    end
+    return true
+end
+
+local function ManifestEntries(files)
+    local out = {}
+    for _, name in ipairs(files) do
+        if type(name) == "string" then
+            name = name:gsub("^%./", "")
+            local isSong = name:match("%.mid$") or name:match("%.rtx$")
+            if isSong and name ~= "" and IsSafePath(name) then
+                table.insert(out, name)
+            end
+        end
+    end
+    return out
+end
+
+local function FetchManifest()
+    local ok, res = pcall(game.HttpGet, game, ManifestUrl)
+    if not ok then
+        warn("[MidiPlayer] Failed to fetch manifest: " .. tostring(res))
+        return nil
+    end
+
+    local decodeOk, parsed = pcall(HttpService.JSONDecode, HttpService, res)
+    if not decodeOk then
+        warn("[MidiPlayer] Failed to decode manifest JSON")
+        return nil
+    end
+
+    -- accept either {"version":1,"files":[...]} or a bare array
+    local files = type(parsed) == "table" and (parsed.files or parsed) or nil
+    if type(files) ~= "table" then
+        warn("[MidiPlayer] Manifest has no file list")
+        return nil
+    end
+
+    local songs = ManifestEntries(files)
+    if #songs == 0 then
+        warn("[MidiPlayer] Manifest listed 0 songs")
+        return nil
+    end
+    return songs
+end
+
 local function FetchSongList()
-    return FetchDir(ApiUrl, "", 0)
+    local songs = FetchManifest()
+    if songs then
+        print("[MidiPlayer] Manifest listed " .. #songs .. " song(s)")
+        return songs
+    end
+
+    -- fallback for anyone pinned to a commit from before the manifest existed
+    warn("[MidiPlayer] Falling back to GitHub API listing")
+    songs = FetchDir(ApiUrl, "", 0)
+    if #songs == 0 then
+        warn("[MidiPlayer] No songs found. Check that " .. ManifestUrl .. " loads in your browser.")
+    end
+    return songs
 end
 
 local songList = FetchSongList()
 print("[MidiPlayer] Found " .. #songList .. " song(s) in repo")
 
+if #songList == 0 then
+    warn("[MidiPlayer] Continuing with whatever is already in the workspace")
+end
+
 for _, f in ipairs(songList) do
     AddSong(f)
 end
 
-loadstring(game:HttpGet("https://raw.githubusercontent.com/g4zwr/Midi-Auto-Player/refs/heads/main/pianista.lua"))()
+local guiOk, guiErr = pcall(function()
+    local chunk = loadstring(FetchGui())
+    if type(chunk) ~= "function" then
+        error("loadstring did not return a function")
+    end
+    return chunk()
+end)
+if not guiOk then
+    warn("[MidiPlayer] Failed to start the GUI: " .. tostring(guiErr))
+end
