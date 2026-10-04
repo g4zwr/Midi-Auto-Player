@@ -54,6 +54,18 @@ workspace/
 
 Folders become **types** in the MIDI List window: the list opens showing each type with its song count, and entering one shows all of its songs (use `‹` to go back). The search box filters types at the top level and songs inside a type. `.rtx` and `.mid.rtx` files are automatically converted to `.mid` on scan — no manual renaming needed.
 
+> Type = the file's **immediate parent folder**. Nesting deeper (`Vocaloid/Teto/song.mid`) would make `Teto` the type instead, so keep artist information in the filename.
+
+---
+
+## Bundled MIDI Library
+
+`Loader.lua` downloads the repository's `midi/` tree into your workspace, so a fresh install starts with a playable library grouped by type: `Games/`, `Vocaloid/`, `Pop/`, `Other/`, `AZALI/`, `The Living Tombstone/`.
+
+The `Vocaloid/` type includes current chart entries — **Tetoris** (Hiiragi Magnetite feat. Kasane Teto), **Mesmerizer** (32ki), **Oobaaraido Override**, **Cherry Pop**, **Monitoring** and **Rabbit Hole** (DECO*27), **Signaling** (ABM), and **Displayholic** (AnythingBecomeMoe). Each has several community arrangements; the `Tetoris` and `Mesmerizer` entries are full-length (~2:20 / ~2:35), while a few uploads labelled *(excerpt)* are short clips.
+
+Arrangements are community uploads sourced from [onlinesequencer.net](https://onlinesequencer.net/sequences); please respect each uploader's terms.
+
 ---
 
 ## Table of Contents
