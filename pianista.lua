@@ -99,6 +99,10 @@ local function makeDraggable(guiObj, dragHandle)
     end)
 end
 
+local ACCENT = RGB(100, 120, 255)
+local ACCENT_DEEP = RGB(30, 40, 80)
+local TEXT_DIM = RGB(120, 120, 130)
+
 local screenGui = createUI("ScreenGui", {
     Name = "VirtualPianoPlayer",
     ResetOnSpawn = false,
@@ -156,7 +160,7 @@ local midiTopBar = createUI("Frame", {
 addPadding(midiTopBar, 0, 0, 10, 10)
 makeDraggable(midiFrame, midiTopBar)
 
-createUI("TextLabel", {
+local midiTitleLabel = createUI("TextLabel", {
     Size = UDim2(0.7, 0, 1, 0),
     BackgroundTransparency = 1,
     TextColor3 = RGB(255, 255, 255),
@@ -193,15 +197,29 @@ local searchBox = createUI("TextBox", {
     TextColor3 = RGB(255, 255, 255),
     PlaceholderText = "Search MIDI...",
     Text = "",
-    PlaceholderColor3 = RGB(120, 120, 130),
+    PlaceholderColor3 = RGB(140, 140, 152),
     Font = Enum.Font.Gotham,
     TextSize = 11,
     ClearTextOnFocus = false,
     Parent = midiContent
 })
 addCorner(searchBox, 6)
-addStroke(searchBox, RGB(255, 255, 255), 1, 0.9)
+local searchStroke = addStroke(searchBox, RGB(255, 255, 255), 1, 0.9)
 addPadding(searchBox, 0, 0, 8, 8)
+
+local function bindFocusRing(box, stroke)
+    box.Focused:Connect(function()
+        stroke.Color = ACCENT
+        stroke.Thickness = 1.5
+        stroke.Transparency = 0.2
+    end)
+    box.FocusLost:Connect(function()
+        stroke.Color = RGB(255, 255, 255)
+        stroke.Thickness = 1
+        stroke.Transparency = 0.9
+    end)
+end
+bindFocusRing(searchBox, searchStroke)
 
 local refreshButton = createUI("TextButton", {
     Size = UDim2(1, 0, 0, 26),
@@ -232,6 +250,20 @@ createUI("UIListLayout", {
     Parent = rightPanel
 })
 addPadding(rightPanel, 4, 4, 4, 4)
+
+local midiEmptyLabel = createUI("TextLabel", {
+    Size = UDim2(1, 0, 1, -64),
+    Position = UDim2(0, 0, 0, 64),
+    BackgroundTransparency = 1,
+    TextColor3 = RGB(140, 140, 152),
+    Text = "No MIDI files found",
+    Font = Enum.Font.Gotham,
+    TextSize = 11,
+    TextWrapped = true,
+    TextYAlignment = Enum.TextYAlignment.Center,
+    Visible = false,
+    Parent = midiContent
+})
 
 ---------------------------------------------------------
 -- WINDOW 2: PIANO PLAYER WINDOW
@@ -343,7 +375,7 @@ addCorner(sliderTrack, 3)
 
 local sliderFill = createUI("Frame", {
     Size = UDim2(0, 0, 1, 0),
-    BackgroundColor3 = RGB(255, 255, 255),
+    BackgroundColor3 = ACCENT,
     Parent = sliderTrack
 })
 addCorner(sliderFill, 3)
@@ -364,7 +396,7 @@ local timeLabel = createUI("TextLabel", {
     TextColor3 = RGB(150, 150, 160),
     Text = "00:00 / 00:00",
     Font = Enum.Font.GothamMedium,
-    TextSize = 9,
+    TextSize = 10,
     TextXAlignment = Enum.TextXAlignment.Right,
     Parent = sliderContainer
 })
@@ -412,7 +444,8 @@ local transposeInput = createUI("TextBox", {
     Parent = controlsContainer
 })
 addCorner(transposeInput, 6)
-addStroke(transposeInput, RGB(255, 255, 255), 1, 0.9)
+local transposeStroke = addStroke(transposeInput, RGB(255, 255, 255), 1, 0.9)
+bindFocusRing(transposeInput, transposeStroke)
 
 local speedInput = createUI("TextBox", {
     Size = UDim2(0.48, 0, 0, 24),
@@ -426,7 +459,8 @@ local speedInput = createUI("TextBox", {
     Parent = controlsContainer
 })
 addCorner(speedInput, 6)
-addStroke(speedInput, RGB(255, 255, 255), 1, 0.9)
+local speedStroke = addStroke(speedInput, RGB(255, 255, 255), 1, 0.9)
+bindFocusRing(speedInput, speedStroke)
 
 local playButton = createUI("TextButton", {
     Size = UDim2(0.48, 0, 0, 30),
@@ -443,8 +477,8 @@ addCorner(playButton, 6)
 local pauseButton = createUI("TextButton", {
     Size = UDim2(0.48, 0, 0, 30),
     Position = UDim2(0.52, 0, 0, 48),
-    BackgroundColor3 = RGB(28, 28, 34),
-    TextColor3 = RGB(220, 220, 220),
+    BackgroundColor3 = RGB(20, 20, 25),
+    TextColor3 = TEXT_DIM,
     Text = "Pause",
     Font = Enum.Font.GothamBold,
     TextSize = 11,
@@ -471,18 +505,21 @@ pianoMinBtn.MouseButton1Click:Connect(function()
     pianoMinBtn.Text = isPianoMinimized and "+" or "−"
 end)
 
+local function setWindowsVisible(visible)
+    midiFrame.Visible = visible
+    pianoFrame.Visible = visible
+    toggleButton.BackgroundColor3 = visible and RGB(22, 22, 26) or RGB(14, 14, 17)
+    toggleButton.TextColor3 = visible and RGB(255, 255, 255) or TEXT_DIM
+end
+
 toggleButton.MouseButton1Click:Connect(function()
-    local nextVisible = not midiFrame.Visible
-    midiFrame.Visible = nextVisible
-    pianoFrame.Visible = nextVisible
+    setWindowsVisible(not midiFrame.Visible)
 end)
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if not gameProcessed and not UserInputService:GetFocusedTextBox() then
         if input.KeyCode == TOGGLE_KEY then
-            local nextVisible = not midiFrame.Visible
-            midiFrame.Visible = nextVisible
-            pianoFrame.Visible = nextVisible
+            setWindowsVisible(not midiFrame.Visible)
         end
     end
 end)
@@ -562,6 +599,17 @@ for _, item in ipairs(chromaticNotes) do
             Parent = pianoKeysFrame
         })
         addCorner(wKey, 2)
+        createUI("TextLabel", {
+            Size = UDim2(1, 0, 0, 12),
+            Position = UDim2(0, 0, 1, -13),
+            BackgroundTransparency = 1,
+            Text = item.char,
+            TextColor3 = RGB(95, 95, 105),
+            Font = Enum.Font.GothamMedium,
+            TextSize = 8,
+            ZIndex = 2,
+            Parent = wKey
+        })
         item.data = { frame = wKey, xPos = keyXPos, width = whiteKeyWidth, isBlack = false }
     else
         local keyXPos = (currentWhiteIndex - 1) * whiteKeyWidth + (whiteKeyWidth * 0.65)
@@ -1007,21 +1055,35 @@ local function updateMidiListUI()
 
     local filter = string.lower(searchBox.Text or "")
     local yOffset = 0
+    local shown = 0
 
     for _, filePath in ipairs(midiFiles) do
         local displayName = filePath:match("([^/\\]+)$") or filePath
         if filter == "" or string.find(string.lower(displayName), filter, 1, true) then
+            shown = shown + 1
+            local isSelected = (filePath == selectedFilePath)
             local btn = createUI("TextButton", {
                 Size = UDim2(1, 0, 0, 26),
-                BackgroundColor3 = RGB(18, 18, 22),
-                TextColor3 = RGB(220, 220, 220),
+                BackgroundColor3 = isSelected and RGB(26, 32, 58) or RGB(18, 18, 22),
+                TextColor3 = isSelected and RGB(235, 238, 255) or RGB(220, 220, 220),
                 Text = displayName,
                 Font = Enum.Font.Gotham,
                 TextSize = 11,
+                TextXAlignment = Enum.TextXAlignment.Left,
                 TextTruncate = Enum.TextTruncate.AtEnd,
                 Parent = rightPanel
             })
             addCorner(btn, 4)
+            addPadding(btn, 0, 0, 10, 6)
+            if isSelected then
+                local selBar = createUI("Frame", {
+                    Size = UDim2(0, 3, 1, -8),
+                    Position = UDim2(0, 3, 0, 4),
+                    BackgroundColor3 = ACCENT,
+                    Parent = btn
+                })
+                addCorner(selBar, 2)
+            end
 
             btn.MouseButton1Click:Connect(function()
                 pendingSelectionToken = pendingSelectionToken + 1
@@ -1037,6 +1099,7 @@ local function updateMidiListUI()
                     statusLabel.Text = "Selected: " .. displayName
                     cachedFilePath = nil
                     cachedNoteEvents = nil
+                    updateMidiListUI()
 
                     if readfile then
                         local ok, rawData = pcall(readfile, filePath)
@@ -1057,6 +1120,23 @@ local function updateMidiListUI()
             yOffset = yOffset + 30
         end
     end
+    if #midiFiles == 0 then
+        midiTitleLabel.Text = "MIDI List  ·  0"
+    elseif filter ~= "" then
+        midiTitleLabel.Text = "MIDI List  ·  " .. shown .. " / " .. #midiFiles
+    else
+        midiTitleLabel.Text = "MIDI List  ·  " .. #midiFiles
+    end
+
+    midiEmptyLabel.Visible = (shown == 0)
+    if shown == 0 then
+        if #midiFiles == 0 then
+            midiEmptyLabel.Text = "No MIDI files found.\nPut .mid files in your workspace, then press Rescan Files."
+        else
+            midiEmptyLabel.Text = "No matches for \"" .. (searchBox.Text or "") .. "\""
+        end
+    end
+
     rightPanel.CanvasSize = UDim2(0, 0, 0, yOffset)
 end
 
@@ -1161,6 +1241,8 @@ stopPlayback = function()
     playButton.BackgroundColor3 = RGB(255, 255, 255)
     playButton.TextColor3 = RGB(10, 10, 10)
     pauseButton.Text = "Pause"
+    pauseButton.BackgroundColor3 = RGB(20, 20, 25)
+    pauseButton.TextColor3 = TEXT_DIM
     updateSliderVisual(0)
     timeLabel.Text = "00:00 / 00:00"
     clearNoteVisuals()
@@ -1169,7 +1251,15 @@ end
 pauseButton.MouseButton1Click:Connect(function()
     if not isPlaying then return end
     isPaused = not isPaused
-    pauseButton.Text = isPaused and "Resume" or "Pause"
+    if isPaused then
+        pauseButton.Text = "Resume"
+        pauseButton.BackgroundColor3 = ACCENT_DEEP
+        pauseButton.TextColor3 = RGB(160, 175, 255)
+    else
+        pauseButton.Text = "Pause"
+        pauseButton.BackgroundColor3 = RGB(28, 28, 34)
+        pauseButton.TextColor3 = RGB(220, 220, 220)
+    end
 end)
 
 playButton.MouseButton1Click:Connect(function()
@@ -1225,6 +1315,9 @@ playButton.MouseButton1Click:Connect(function()
     playButton.Text = "Stop"
     playButton.BackgroundColor3 = RGB(220, 60, 60)
     playButton.TextColor3 = RGB(255, 255, 255)
+    pauseButton.Text = "Pause"
+    pauseButton.BackgroundColor3 = RGB(28, 28, 34)
+    pauseButton.TextColor3 = RGB(220, 220, 220)
 
     spawn(function()
         currentElapsedTime = 0
