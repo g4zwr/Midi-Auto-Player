@@ -66,6 +66,14 @@ The `Vocaloid/` type includes current chart entries — **Tetoris** (Hiiragi Mag
 
 Arrangements are community uploads sourced from [onlinesequencer.net](https://onlinesequencer.net/sequences); please respect each uploader's terms.
 
+### Downloading the library
+
+On first run the loader shows a progress card while it fetches the songs it is missing: a progress bar with a percentage, a file counter, bytes downloaded, a throughput and time-left estimate, and the folder and file currently in flight.
+
+Songs are fetched **6 at a time** instead of one after another, which is what makes the difference on a 987-file library. Folders are still handled one after another, so the **Skip** button always has a single unambiguous target: it abandons only the folder currently loading — the downloads already in flight for it finish, and nothing else in that folder is started — then moves on to the next folder. You keep pressing it to skip further folders; there is no way to skip everything in one press. Songs already in your workspace are never re-fetched, so a second run downloads nothing and shows no card.
+
+Raise or lower the parallelism with `DOWNLOAD_WORKERS` at the top of `Loader.lua`. Too many concurrent requests makes Roblox throttle every one of them, so more is not always faster.
+
 ### The song manifest
 
 `midi/manifest.json` is the index of every song in the library — 987 files across 100 type folders in about 50 KB. `Loader.lua` downloads that one file to learn what to fetch, then pulls each song from `raw.githubusercontent.com`.
@@ -163,6 +171,8 @@ It addresses key layout limitations found in standard 5-octave players by introd
 | Script fails to load | Raw URL incorrect or repo file renamed | Re-copy the **Raw** link from GitHub for the current filename |
 | `Failed to fetch repo listing` | `midi/manifest.json` is missing or unreachable | Open the manifest URL from a browser; if it 404s, the repo copy is stale |
 | `Found 0 song(s) in repo` | Manifest and API fallback both failed | Both listing sources are rate-limited or blocked; re-run after a few minutes |
+| Downloads feel slow | Executor or connection is throttling parallel requests | Lower `DOWNLOAD_WORKERS` in `Loader.lua`, or try on a better connection |
+| `Download progress UI unavailable` | The GUI could not be built in this executor | Downloads still continue; only the progress card is missing |
 | Video not rendering in README | Used a `blob/` link or local file path instead of an uploaded attachment | Drag the video into an Issue/PR comment box to generate a `user-attachments/assets/...` URL |
 
 ---
